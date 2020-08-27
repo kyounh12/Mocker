@@ -23,11 +23,16 @@ public struct Mocker {
     /// The HTTP Version to use in the mocked response.
     public static var httpVersion: HTTPVersion = HTTPVersion.http1_1
     
+    /// If `allowListing` enabled, `Mocker` only handles urls containing strings in `allowedList`
+    /// Else, `Mocker` handles urls except for urls containing strings in `deniedList`
+    public static var allowListing: Bool = false
+    
     /// The registrated mocks.
     private(set) var mocks: [Mock] = []
     
-    /// URLs to ignore for mocking.
-    private(set) var ignoredURLs: [URL] = []
+    /// URLs to handle for mocking.
+    private(set) var allowedList: [String] = []
+    private(set) var deniedList: [String] = []
 
     /// For Thread Safety access.
     private let queue = DispatchQueue(label: "mocker.mocks.access.queue", attributes: .concurrent)
@@ -50,10 +55,19 @@ public struct Mocker {
     
     /// Register an URL to ignore for mocking. This will let the URL work as if the Mocker doesn't exist.
     ///
-    /// - Parameter url: The URL to mock.
-    public static func ignore(_ url: URL) {
+    /// - Parameter url: The string  to deny.
+    public static func deny(_ string: String) {
         shared.queue.async(flags: .barrier) {
-            shared.ignoredURLs.append(url)
+            shared.deniedList.append(string)
+        }
+    }
+    
+    /// Register an URL to allow for mocking.
+    ///
+    /// - Parameter url: The string  to deny.
+    public static func allow(_ string: String) {
+        shared.queue.async(flags: .barrier) {
+            shared.allowedList.append(string)
         }
     }
     
@@ -63,7 +77,12 @@ public struct Mocker {
     /// - Returns: `true` if it should be mocked, `false` if the URL is registered as ignored.
     public static func shouldHandle(_ url: URL) -> Bool {
         shared.queue.sync {
-            return !shared.ignoredURLs.contains(url)
+            let urlString: String = url.absoluteString
+            if allowListing {
+                return shared.allowedList.contains(where: { urlString.contains($0) })
+            } else {
+                return !shared.deniedList.contains(where: { urlString.contains($0) })
+            }
         }
     }
 
