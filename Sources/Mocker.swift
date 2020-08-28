@@ -27,6 +27,9 @@ public struct Mocker {
     /// Else, `Mocker` handles urls except for urls containing strings in `deniedList`
     public static var allowListing: Bool = false
     
+    /// If `debugOnly` is true, Mocker only handles requests when `DEBUG` flag exists
+    public static var debugOnly: Bool = true
+    
     /// The registrated mocks.
     private(set) var mocks: [Mock] = []
     
@@ -77,6 +80,13 @@ public struct Mocker {
     /// - Returns: `true` if it should be mocked, `false` if the URL is registered as ignored.
     public static func shouldHandle(_ url: URL) -> Bool {
         shared.queue.sync {
+            // Check if debug mode is enabled
+            if debugOnly {
+                #if !DEBUG
+                return false
+                #endif
+            }
+
             let urlString: String = url.absoluteString
             if allowListing {
                 return shared.allowedList.contains(where: { urlString.contains($0) })
